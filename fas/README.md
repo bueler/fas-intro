@@ -1,6 +1,6 @@
-# mg-glaciers/fas/
+# fas-intro
 
-This little project is finished.  I posted the documentation as a preprint to [arxiv.org/abs/2101.05408](https://arxiv.org/abs/2101.05408).  I do not plan to pursue publication.
+This little project is finished.  I posted the preprint to [arxiv.org/abs/2101.05408](https://arxiv.org/abs/2101.05408).  I do not plan to pursue publication.
 
 The program `fas1.py` in directory `py/` demonstrates by example how the _full approximation storage_ (FAS) multigrid scheme works.  It solves an easy nonlinear ODE BVP using piecewise-linear finite elements and a nonlinear Gauss-Seidel smoother.
 

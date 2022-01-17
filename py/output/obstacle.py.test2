@@ -1,8 +1,0 @@
-  0:  |u-uexact|_2 = 1.2857e-01
-level 1: 1 sweeps over m=31 nodes
-  coarsest: 1 sweeps over m=15 nodes
-  1:  |u-uexact|_2 = 7.6300e-02
-level 1: 1 sweeps over m=31 nodes
-  coarsest: 1 sweeps over m=15 nodes
-  2:  |u-uexact|_2 = 4.5981e-02
-J=4 (m=31): 2 PGS V(1,0) cycles -> 3.000 WU;  |u-uexact|_2 = 4.598e-02

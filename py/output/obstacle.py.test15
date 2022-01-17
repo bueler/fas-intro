@@ -1,4 +1,0 @@
-  0:  |ir(u)|_2 = 6.7014e-01
-  1:  |ir(u)|_2 = 4.2768e-01  (rate 0.6382)
-  2:  |ir(u)|_2 = 3.8627e-01  (rate 0.9032)
-J=3 (m=15): 2 applications of PNJac smoother -> 4.000 WU;  |u-uexact|_2 = 2.029e+04, |u^r-uexact^r|_p = 7.815e+08
