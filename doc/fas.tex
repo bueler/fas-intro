@@ -77,7 +77,6 @@ urlcolor=black    % ...
 \tableofcontents
 
 \thispagestyle{empty}
-\bigskip
 
 \section{Introduction}  \label{sec:intro}
 
@@ -473,9 +472,9 @@ It is important to avoid the introduction of high frequencies as one generates t
 It is common for a better interpolation scheme to be used for $\hat P$ than for $P$ \cite{Trottenbergetal2001}.  Our choice for $\hat P$ first applies $P$ to generate a fine-mesh function, but this is followed by sweeping once through the \emph{new} fine-mesh nodes and applying NGS there without altering values at the coarse-mesh nodes.  This $\hat P$ is half of a smoother, and counted as such; see section \ref{sec:performance}.
 
 
-\section{Convergence} \label{sec:convergence}
+\section{Demonstrations, and convergence} \label{sec:convergence}
 
-The Python program \texttt{fas1.py} accompanying this note applies \pr{fas-solver} by default, with zero initial iterate, to solve equation \eqref{liouvillebratu}.  The program depends only on the widely-available NumPy library \cite{Harrisetal2020}.  It imports local modules \texttt{meshlevel.py}, \texttt{problems.py}, and \texttt{cycles.py} from the same directory.
+The Python program \texttt{fas1.py} accompanying this note applies \pr{fas-solver} by default, with zero initial iterate, to solve equation \eqref{liouvillebratu}.  The program depends only on the widely-available NumPy library \cite{Harrisetal2020}.
 
 To get started, clone the Git repository and run the program:
 \begin{cline}
@@ -485,18 +484,22 @@ $ ./fas1.py
   m=8 mesh, 6 V(1,1) cycles (19.50 WU): |u|_2=0.102443
 \end{cline}
 %$
-Various allowed options to \texttt{fas1.py} are shown by usage help:\footnote{Also, a small suite of software (regression) tests of \texttt{fas1.py} is run with \,\texttt{make test}.}
+The V-cycles in this run (Figure \ref{fig:cycles}) are reported as ``\texttt{V(1,1)}'' because the defaults correspond to \texttt{down} $=1$ and \texttt{up} $=1$ NGS sweeps on each level.
+
+Various allowed options are shown by usage help:
 \begin{cline}
 $ ./fas1.py -h
 \end{cline}
 %$
-For example, choosing a mesh with $m=2^{K+1}=16$ elements and a problem with known exact solution (section \ref{sec:intro}), yields Figure \ref{fig:show}:
+Also, a small suite of software (regression) tests of \texttt{fas1.py} is run via \,\texttt{make test}.
+
+Choosing a mesh with $m=2^{K+1}=16$ elements and a problem with known exact solution (section \ref{sec:intro}) yields Figure \ref{fig:show}:
 \begin{cline}
 $ ./fas1.py -K 3 -mms -show
   m=16 mesh, 6 V(1,1) cycles (21.75 WU): ... |u-u_ex|_2=2.1315e-02
 \end{cline}
 %$
-The V-cycles in this run, exactly as shown in Figure \ref{fig:cycles}, are reported as ``\texttt{V(1,1)}'' because the defaults correspond to \texttt{down} $=1$ and \texttt{up} $=1$ NGS sweeps on each level.  Note that runs with option \texttt{-mms} report the final numerical error $\|w^h-u\|_2$.
+Note that runs with option \texttt{-mms} report the final numerical error $\|w^h-u\|_2$.
 
 \begin{figure}
 \includegraphics[width=0.8\textwidth]{figs/show.pdf}
@@ -504,9 +507,9 @@ The V-cycles in this run, exactly as shown in Figure \ref{fig:cycles}, are repor
 \label{fig:show}
 \end{figure}
 
-By using the \texttt{-mms} case we can demonstrate convergence of our implemented FE method, and thereby verify \texttt{fas1.py}.  The numerical error from runs with 12 V-cycles, i.e.~with options \texttt{-rtol 0 -cyclemax 12}, and $K=3,4,\dots,14$ corresponding to $16\le m \le 32768$ elements, are shown in Figure \ref{fig:converge}.  Because our problem is so simple, with a very smooth solution, the convergence rate is exactly at the expected rate $O(h^2)$ \cite{Elmanetal2014}.
+We can demonstrate convergence of our implemented FE method, and verify \texttt{fas1.py}.  Consider hierarchy depths $K=3,4,\dots,14$, corresponding to meshes with $16\le m \le 32768$ elements.  The numerical errors from runs with 12 V-cycles, i.e.~options \texttt{-rtol 0 -cyclemax 12}, are shown in Figure \ref{fig:converge}.  Because our problem is so simple, with a very smooth solution, the convergence rate is exactly at the expected rate $O(h^2)$ \cite{Elmanetal2014}.
 
-However, if instead of a small, fixed number of V-cycles we instead try a large number of NGS sweeps, e.g.~we apply the algorithm below with \texttt{-rtol 0 -cyclemax 10000} and zero initial iterate, then the results are disappointing.
+However, if instead of a small, fixed number of V-cycles we instead try a large number of NGS sweeps, e.g.~we apply the algorithm below with \texttt{-rtol 0 -cyclemax 10000} and zero initial iterate, then the performance is far to slow to repeat these verification runs.
 \begin{pseudo*}
 \pr{ngsonly}(w^K,\id{rtol}=10^{-4},\id{cyclemax}=100)\text{:} \\+
     $\ell^K[v] = \ip{g}{v}$ \\
@@ -517,10 +520,12 @@ However, if instead of a small, fixed number of V-cycles we instead try a large 
             break \\--
     return $w^K$
 \end{pseudo*}
-As shown in Figure \ref{fig:converge}, such runs generates convergence to discretization error only on meshes with $m=16,32,64,128$.  For slightly finer meshes ($m=256,512$) the same number of sweeps is no longer sufficient, and continuing to yet finer meshes using the same number of sweeps would make essentially no progress (not shown).  The reason for this behavior is that almost all of the algebraic error (section \ref{sec:femethod}) is in low-frequency modes which the NGS sweeps are barely able to reduce.  This is the situation which multigrid schemes are designed to address \cite{BrandtLivne2011,Briggsetal2000}: by moving the problem between meshes the same smoother will efficiently-reduce all frequencies present in the error.  Both the smoother and the coarse-level solver components of our FAS algorithms consist entirely of NGS sweeps, but by adding a multilevel mesh infrastructure we have arranged that the sweeps are always making progress.
+As shown in Figure \ref{fig:converge}, such runs generates convergence to discretization error only on the 4 coarsest meshes.  For slightly finer meshes ($m=256,512$) the same number of sweeps is no longer sufficient, and on yet finer meshes the same number of sweeps make essentially no progress (not shown).
+
+The reason for the failure of \pr{ngsonly} is that almost all of the algebraic error (section \ref{sec:femethod}) is in low-frequency modes which the NGS sweeps are barely able to reduce.  This is exactly the situation which multigrid schemes are designed to address \cite{BrandtLivne2011,Briggsetal2000}: by moving the problem between meshes the same smoother will efficiently-reduce all frequencies present in the error.  Both the smoother and the coarse-level solver components of our FAS algorithms consist entirely of NGS sweeps, but by adding a multilevel mesh infrastructure we have arranged that the sweeps are always making progress.
 
 \begin{figure}
-\includegraphics[width=0.7\textwidth]{figs/converge.pdf}
+\includegraphics[width=0.65\textwidth]{figs/converge.pdf}
 \caption{For a fixed number of V-cycles the numerical error $\|u-u_{\text{ex}}\|_2$ converges to zero at the expected rate $O(h^2)$.  Even $10^4$ NGS sweeps fail to converge at higher resolutions.}
 \label{fig:converge}
 \end{figure}
@@ -531,12 +536,12 @@ As shown in Figure \ref{fig:converge}, such runs generates convergence to discre
 Having verified our method, our first performance test compares three solver algorithms:
 \begin{itemize}
 \item \textsc{fas-fcycle}, defined in section \ref{sec:cycles}.
-\item \textsc{fas-solver}, which does V-cycles, defined in section \ref{sec:cycles}.
-\item \textsc{ngsonly}, defined in section \ref{sec:convergence}.
+\item \textsc{fas-solver}, which does V-cycles, also defined in section \ref{sec:cycles}.
+\item \textsc{ngsonly} in section \ref{sec:convergence}.
 \end{itemize}
-The two FAS algorithms actually represent many different algorithms according to the different options.  While making no attempt to systematically-explore the parameter space, we observe that 7 to 12 V(1,1) cycles suffice to approach discretization error in the \texttt{-mms} problem.  For F-cycles we must choose how many V-cycles to take once the finest level is reached, and 2 or 3 certainly suffice.  Experimentation in minimizing the work units (below), while maintaining convergence, yields a choice of three V(1,0) cycles.
+The two FAS pseudocodes actually represent many different algorithms according to the different options.  While making no attempt to systematically-explore the parameter space, we observe that 7 to 12 V(1,1) cycles suffice to approach discretization error in the \texttt{-mms} problem.  For F-cycles we must choose how many V-cycles to take once the finest level is reached, and 2 or 3 usually suffice.  Experimentation in minimizing the work units (below), while maintaining convergence, yields a choice of three V(1,0) cycles.
 
-The three chosen algorithms become the following specific \texttt{fas1.py} options on meshes with $m=2^{K+1}$ elements for $K=3,4,\dots,17,18$:
+Consider the following specific \texttt{fas1.py} options on meshes with $m=2^{K+1}$ elements for $K=3,4,\dots,17,18$:
 
 \medskip
 \begin{tabular}{ll}
@@ -546,19 +551,17 @@ The three chosen algorithms become the following specific \texttt{fas1.py} optio
 \end{tabular}
 
 \medskip
-In order to achieve convergence for NGS sweeps alone, we must choose rapidly increasing $Z$ as $K$ increases.  For the comparison below we simply double $Z$ until the reported numerical error is within a factor of two of discretization error (as reported by the FAS algorithms), but at $K=7$ the time is 100 seconds and we stop testing.
+In order to achieve convergence for NGS sweeps alone, we must choose rapidly increasing $Z$ as $K$ increases.  For the comparison below we simply double $Z$ until the reported numerical error is within a factor of two of discretization error (as reported by the FAS algorithms).  However, at $K=7$ the time is 100 seconds and we stop testing.
 
-The results for run time on the author's laptop are in Figure \ref{fig:optimal}.  For all the coarser meshes, e.g.~$m=16,\dots,256$, the FAS algorithms run in about 0.3 seconds.  This is the minimum time to start and run any Python program on this machine, so the actual computational time is not really detected.  For $m \ge 10^3$ both FAS algorithms enter into a regime where the run time is greater than one second, and then it becomes proportional to $m$.  That is, their solver complexity is $O(m^1)$.  These are \emph{optimal} solvers \cite[Chapter 7]{Bueler2021}.
-
-By contrast, the \pr{ngsonly} algorithm is far from optimal, and not capable of solving on fine meshes.  Fitting the three finest-mesh completed cases suggests its time is $O(m^{3.5})$.
+Run times on the author's laptop are shown in Figure \ref{fig:optimal}.  For all the coarser meshes, e.g.~$m=16,\dots,256$, the FAS algorithms run in about 0.3 seconds.  This is the minimum time to start and run any Python program on this machine, so the actual computational time is not actually observed.  For $m \ge 10^3$ both FAS algorithms enter into a regime where the run time is greater than one second, and then it becomes proportional to $m$.  That is, their solver complexity is $O(m^1)$.  These are \emph{optimal} solvers \cite[Chapter 7]{Bueler2021}.  By contrast, \pr{ngsonly} is far from optimal, and indeed it is not capable of solving on fine meshes.  Fitting the three finest-mesh completed cases suggests its time is $O(m^{3.5})$.
 
 \begin{figure}
-\includegraphics[width=0.7\textwidth]{figs/optimal.pdf}
+\includegraphics[width=0.65\textwidth]{figs/optimal.pdf}
 \caption{Run time to reach discretization error is optimal $O(m)$ for both V-cycles and F-cycles.  Run time explodes for NGS sweeps.}
 \label{fig:optimal}
 \end{figure}
 
-A standard way to compare multigrid-type solver algorithms uses the concept of a \emph{work unit} (WU).  One WU is the number of operations needed to do one smoother sweep on the finest mesh, which takes $O(m)$ arithmetic (floating point) operations.  For WUs in a 1D multilevel scheme, note that a smoother sweep on the second-finest mesh is $\frac{1}{2}$WU, and so on downward in the hierarchy, so the total of WU for a multigrid algorithm is a finite geometric sum \cite{Briggsetal2000} which depends on the number of levels $K$.  For simplicity we do not count the arithmetic work in restriction and prolongation, other than in the enhanced prolongation $\hat P$ in \eqref{enhancedprolongation}, which uses $\frac{1}{2}$WU when passing to the finest mesh.  Also we ignore non-arithmetic work entirely, for example vector copies.
+A standard way to compare multigrid-type solvers uses the concept of a \emph{work unit} (WU).  One WU is the number of operations needed to do a smoother sweep on the finest mesh, which takes $O(m)$ arithmetic (floating point) operations.  For WUs in a 1D multilevel scheme, a smoother sweep on the second-finest mesh is $\frac{1}{2}$WU, and so on downward in the hierarchy.  The total of WU for a multigrid algorithm is thus a finite geometric sum \cite{Briggsetal2000} which depends on the number of levels $K$.  For simplicity we do not count the arithmetic work in restriction and prolongation, other than in the enhanced prolongation $\hat P$ in \eqref{enhancedprolongation}, which uses $\frac{1}{2}$WU when passing to the finest mesh.  Also we ignore non-arithmetic work entirely, for example vector copies.
 
 Consider the $K\to\infty$ limit of WU calculations for the three algorithms above:
 \begin{align*}
@@ -566,14 +569,14 @@ Consider the $K\to\infty$ limit of WU calculations for the three algorithms abov
 \text{WU}\big(\text{\textsf{$Z$ V(1,1) cycles}}\big)   &\approx 4Z \\
 \text{WU}\big(\text{\textsf{$Z$ NGS sweeps}}\big)      &= Z
 \end{align*}
-(Note that counting work units for NGS sweeps is trivial.)  To confirm this we have added WU counting to \texttt{fas1.py}.  On a $K=10$ mesh with $m=2^{11}=2048$ elements, for example, we observe that \textsf{F-cycles$+$3$\times$V(1,0)} requires a measured 8.98 WU while \textsf{12 V(1,1) cycles} uses 47.96 WU.
+To confirm these estimates in practice we have added WU counting in \texttt{fas1.py}.  On a $K=10$ mesh with $m=2^{11}=2048$ elements, for example, we observe that \textsf{F-cycles$+$3$\times$V(1,0)} requires a measured 8.98 WU while \textsf{12 V(1,1) cycles} uses 47.96 WU.
 
-In fact a single F-cycle, without any additional V-cycles, nearly reaches discretization error.  Consider three single-F-cycle schemes.  The first is ``F(1,1)'', which uses the default settings \id{down}=1 and \id{up}=1.  The other two are ``F(1,0)'', using \id{up}=0, and ``F(1,0)+$\Rin$'', which changes from the default full-weighting restriction ($\Rfw$) to injection ($\Rin$).  These three solvers use 9, 5, and 5 WU, respectively, in the $K\to\infty$ limit of many levels.
+A single F-cycle, without any additional V-cycles, nearly reaches discretization error.  Consider three single-F-cycle schemes.  The first is ``F(1,1)'', which uses the default settings \id{down}=1 and \id{up}=1.  The other two are ``F(1,0)'', using \id{up}=0, and ``F(1,0)+$\Rin$'', which changes from the default full-weighting restriction ($\Rfw$) to injection ($\Rin$).  These three solvers use 9, 5, and 5 WU, respectively, in the $K\to\infty$ limit of many levels.
 
-Figure \ref{fig:tme} shows that on $K=7,\dots,18$ meshes, with up to $m=2^{19} = 5 \times 10^5$ elements, the measured numerical error is within a factor of two of discretization error.  Note that the F(1,0) cycles actually generate smaller errors, and there is no significant difference between the two restriction methods.  On the finest mesh it seems the discretization error itself, of order $10^{-11}$, was corrupted by rounding errors, and so all the measured numerical errors are closer together.  Noting that some multigrid authors \cite[for example]{BrownSmithAhmadia2013} use ``textbook multigrid efficiency'' if fewer than 10 WU are needed to achieve discretization error, we conclude that our F-cycles exhibit textbook multigrid efficiency.
+Figure \ref{fig:tme} shows that on $K=7,\dots,18$ meshes, with up to $m=2^{19} = 5 \times 10^5$ elements, the measured numerical error is within a factor of two of discretization error.  Note that the F(1,0) cycles actually generate smaller errors.  There is no significant difference between the two restriction methods.  On the finest mesh it seems that the discretization error itself, of order $10^{-11}$, was corrupted by rounding errors.  Noting that some multigrid authors \cite[for example]{BrownSmithAhmadia2013} assert ``textbook multigrid efficiency'' for a scheme when fewer than 10 WU are needed to achieve discretization error, we conclude that our F-cycles exhibit textbook multigrid efficiency.
 
 \begin{figure}
-\includegraphics[width=0.7\textwidth]{figs/tme.pdf}
+\includegraphics[width=0.65\textwidth]{figs/tme.pdf}
 \caption{Computed numerical error, relative to discretization error, from three versions of a single F-cycle.}
 \label{fig:tme}
 \end{figure}
@@ -584,22 +587,22 @@ Figure \ref{fig:tme} shows that on $K=7,\dots,18$ meshes, with up to $m=2^{19} =
 Our program \texttt{fas1.py} is deliberately basic in many senses.  Here are three possible extensions which the reader might want to implement:
 \renewcommand{\labelenumi}{\textbf{\Roman{enumi}.}}
 \begin{enumerate}
-\item The default value of the parameter $\lambda$ in \eqref{liouvillebratu} is \texttt{-lam 1.0}, but one can check that the $g=0$ problem becomes unstable at a critical value $\lambda_c \approx 3.5$.  Interestingly, the solution changes very little as $\lambda \nearrow \lambda_c$; things are boring until failure occurs.  (The most-common numerical symptom is overflow of $e^u$.)  Equation \eqref{liouvillebratu} is a very simple model for combustion of a chemical mixture, and this instability corresponds to a chemical explosion \cite{FrankKameneckij1955}.  However, finding $\lambda_c$ precisely is not easy because \texttt{fas1.py} always initializes at the distant location $w^0=0$.  The behavior of FAS F-cycles is especially nontrivial near the critical $\lambda$ because the critical value is different on coarse grids.  (And apparently sometimes smaller!)  A better strategy for solutions near the critical value, and for parameter studies generally, is ``continuation''.  For example, one might use a saved fine-mesh solution as the initial value in a run with a slightly-different $\lambda$ value.  The new run would then only need a few V-cycles.
+\item The default value of the parameter $\lambda$ in \eqref{liouvillebratu} is \texttt{-lam 1.0}, but one can check that the $g=0$ problem becomes unstable at a critical value $\lambda_c \approx 3.5$.  Interestingly, the solution changes very little as $\lambda \nearrow \lambda_c$; things are boring until failure occurs.  (The most-common numerical symptom is overflow of $e^u$.)  Equation \eqref{liouvillebratu} is a very simple model for combustion of a chemical mixture, and this instability corresponds to a chemical explosion \cite{FrankKameneckij1955}.  However, finding $\lambda_c$ precisely is not easy because \texttt{fas1.py} always initializes at the distant location $w^0=0$.  The behavior of FAS F-cycles is especially nontrivial near the critical $\lambda$ because the critical value is different on coarse grids.  (And apparently sometimes smaller!)  A better strategy for solutions near the critical value, and for parameter studies generally, is ``continuation''.  For example, one might use a saved fine-mesh solution as the initial value in a run with a slightly-different $\lambda$ value.  The new run would only use V-cycles.
 \item Equation \eqref{liouvillebratu} is a ``semilinear'' ODE because its nonlinearity occurs in the zeroth-derivative term \cite{Evans2010}.  One might instead solve a ``quasilinear'' equation where the nonlinearity is in the coefficient to the highest-order derivative.  For example, one might try a $p$-Laplacian \cite{Evans2010} extension to the Liouville-Bratu equation:
 \begin{equation}
   -\left(|u'|^{p-2} u'\right)' - \lambda e^u = g.  \label{pbratu}
 \end{equation}
-This equation is the same as \eqref{liouvillebratu} when $p=2$, but for other values $p$ in $(1,\infty)$ the solution is less well-behaved because the coefficient of $u''$ can degenerate or explode.  However, a literature at least exists for the corresponding Poisson problem with $\lambda=0$ \cite{BarrettLiu1993,Bueler2021}.  A basic technique is to regularize the leading coefficient with a numerical parameter $\eps>0$: replace $|u'|^{p-2}$ with $\left(|u'|^2+\eps\right)^{(p-2)/2}$.  With such a change, continuation (item \textbf{II}) will be both important and more complicated.
-\item The most significant extension of \texttt{fas1.py} would be to ``merely'' change from 1D to 2D or 3D.  That is, to change from solving ODEs to solving elliptic PDEs like $-\grad^2 u - \lambda e^u=g$, where $\grad^2$ is the Laplacian operator.  However, doing this in the style of \texttt{fas1.py}, using only NumPy vectors for infrastructure, is not recommended.  Instead, it would be wise to apply an FE library like Firedrake \cite{Rathgeberetal2016} or Fenics \cite{Loggetal2012}, on top of an advanced solver library like PETSc \cite{Balayetal2021,Bueler2021}.  Such libraries involve a substantial learning curve, and their support for FAS multigrid methods is incomplete, but they allow experimentation with higher-order FE spaces and many other benefits.
+This equation is the same as \eqref{liouvillebratu} when $p=2$, but for other values $p$ in $(1,\infty)$ the solution is less well-behaved because the coefficient of $u''$ can degenerate or explode.  (A literature at least exists for the corresponding Poisson-like problem with $\lambda=0$ \cite{BarrettLiu1993,Bueler2021}.)  A basic technique is to regularize the leading coefficient with a numerical parameter $\eps>0$: replace $|u'|^{p-2}$ with $\left(|u'|^2+\eps\right)^{(p-2)/2}$.  With such a change, continuation (item \textbf{I}) is also recommended.
+\item The most significant extension of \texttt{fas1.py} would be to ``merely'' change from 1D to 2D or 3D.  That is, to change from solving ODEs to solving elliptic PDEs like $-\grad^2 u - \lambda e^u=g$, where $\grad^2$ is the Laplacian operator.  However, doing this in the style of \texttt{fas1.py}, using only NumPy vectors for infrastructure, is not recommended.  Instead, it would be wise to apply an FE library like Firedrake \cite{Rathgeberetal2016} or Fenics \cite{Loggetal2012}, on top of an advanced solver library like PETSc \cite{Balayetal2021,Bueler2021}.  Such libraries imply a substantial learning curve, and their support for FAS multigrid methods is incomplete, but they allow experimentation with higher-order FE spaces and many other benefits.
 \end{enumerate}
 
 
 \section{Conclusion}  \label{sec:conclusion}
 
-Regarding the performance of the solvers in the last few sections, we summarize as follows:
+Regarding the performance of the tested solvers, we summarize as follows:
 
 \begin{quotation}
-\emph{On any mesh of $m$ elements, problem \eqref{feweakform} can be solved nearly to the discretization error of our piecewise-linear FE method by using a single FAS F-cycle, or a few FAS V-cycles, and the work of these methods is $O(m)$ with a small constant; they are optimal.  The faster F-cycle gives textbook multigrid efficiency.  These facts holds for all $m$ up until rounding errors overwhelm the discretization at around $m=10^6$.  By contrast, single-level NGS requires rapidly-increasing numbers of sweeps because the work scales as $O(m^q)$ for $q\gg 1$.  For example, more than $10^3$ sweeps are required if $m>10^2$, and if $m>10^3$ then discretization error cannot be achieved by single-level NGS sweeps in reasonable time.}
+\emph{On any mesh of $m$ elements, problem \eqref{feweakform} can be solved nearly to the discretization error of our piecewise-linear FE method by using a single FAS F-cycle, or a few FAS V-cycles.  The work of these methods is $O(m)$ with a small constant; they are optimal.  The faster F-cycle gives textbook multigrid efficiency.  These facts holds for all $m$ up until rounding errors overwhelm the discretization at around $m=10^6$.  By contrast, single-level NGS requires rapidly-increasing numbers of sweeps; its work scales as $O(m^q)$ for $q\gg 1$.}
 \end{quotation}
 
 \small
