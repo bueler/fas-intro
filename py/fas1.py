@@ -77,6 +77,8 @@ prs.add_argument('-rtol', type=float, default=1.0e-4, metavar='L',
                  help='stop on residual norm reduction by this factor (default=1.0e-4)')
 prs.add_argument('-show', action='store_true', default=False,
                  help='show plot at end')
+prs.add_argument('-unroll', action='store_true', default=False,
+                 help='use identical unrolled V-cycles; versus recursive')
 prs.add_argument('-up', type=int, default=1, metavar='N',
                  help='number of NGS sweeps after coarse correction (default=1)')
 args, unknown = prs.parse_known_args()
@@ -118,7 +120,7 @@ ellg = fas.rhs(args.K)
 if args.fcycle:
     # F-cycle ignores initial guess uu
     rnorm0 = fas.residualnorm(args.K, uu, ellg)
-    uu = fas.fcycle(ep=not args.fcycleplainp)
+    uu = fas.fcycle(ep=not args.fcycleplainp, unroll=args.unroll)
     rnorm = fas.residualnorm(args.K, uu, ellg)
     s = 1
 else:
@@ -134,7 +136,10 @@ while s < args.cyclemax:
             fas.ngssweep(args.K, uu, ellg)
         fas.wu[args.K] += args.down  # add into FAS work units array
     else:
-        fas.vcycle(args.K, uu, ellg)
+        if args.unroll:
+            fas.vcycleunroll(args.K, uu, ellg)
+        else:
+            fas.vcycle(args.K, uu, ellg)
     s += 1
     rnorm = fas.printresidualnorm(s, args.K, uu, ellg)
 

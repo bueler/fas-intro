@@ -117,7 +117,7 @@ class FAS():
             self.ngssweep(self.kcoarse, u, ell)
         self.wu[self.kcoarse] += self.coarse
 
-    # FAS V-cycle for levels k down to k=kcoarse; acts in-place on u
+    # recursive FAS V-cycle for levels k down to k=kcoarse; acts in-place on u
     def vcycle(self, k, u, ell):
         if k == self.kcoarse:
             self.coarsesolve(u, ell)
@@ -128,7 +128,6 @@ class FAS():
                 self.ngssweep(k, u, ell)
             self.wu[k] += self.down
             # restrict down using  ell = R' (f^h - F^h(u^h)) + F^{2h}(R u^h)
-            # residual on the fine mesh
             rfine = ell - self.prob.F(self.meshes[k].h, u)
             if self.solutionR == 'inj':
                 Ru = self.meshes[k].Rinj(u)
@@ -139,17 +138,55 @@ class FAS():
             # recurse
             ucoarse = Ru.copy()
             self.vcycle(k - 1, ucoarse, coarseell)
-            du = ucoarse - Ru
-            self.printupdatenorm(k, du)
+            duc = ucoarse - Ru
+            self.printupdatenorm(k, duc)
             # correct by prolongation of update:  u <- u + P(u^{2h} - R u^h)
-            u += self.meshes[k].P(du)
+            u += self.meshes[k].P(duc)
             # smooth: NGS sweeps on fine mesh
             for _ in range(self.up):
                 self.ngssweep(k, u, ell, forward=False)
             self.wu[k] += self.up
 
+    # unrolled FAS V-cycle for levels k=ktop down to k=kcoarse; acts in-place on u
+    def vcycleunroll(self, ktop, u, ell):
+        #print('UNROLL!')
+        if ktop == self.kcoarse:
+            self.coarsesolve(u, ell)
+        else:
+            assert ktop > self.kcoarse
+            self.meshes[ktop].u = u  # attach current iterate and ell to mesh; do NOT copy
+            self.meshes[ktop].ell = ell
+            # downward
+            for k in range(ktop,self.kcoarse,-1):
+                # smooth: NGS sweeps
+                for _ in range(self.down):
+                    self.ngssweep(k, self.meshes[k].u, self.meshes[k].ell)
+                self.wu[k] += self.down
+                # restrict down using  ell = R' (f^h - F^h(u^h)) + F^{2h}(R u^h)
+                rfine = self.meshes[k].ell \
+                        - self.prob.F(self.meshes[k].h, self.meshes[k].u)
+                if self.solutionR == 'inj':
+                    self.meshes[k-1].Ru = self.meshes[k].Rinj(self.meshes[k].u)
+                else:
+                    self.meshes[k-1].Ru = self.meshes[k].Rfw(self.meshes[k].u)
+                self.meshes[k-1].ell = self.meshes[k].CR(rfine) \
+                                       + self.prob.F(self.meshes[k-1].h, self.meshes[k-1].Ru)
+                self.meshes[k-1].u = self.meshes[k-1].Ru.copy()  # copy necessary
+            # coarse solve
+            self.coarsesolve(self.meshes[self.kcoarse].u, self.meshes[self.kcoarse].ell)
+            # upward
+            for k in range(self.kcoarse+1,ktop+1):
+                duc = self.meshes[k-1].u - self.meshes[k-1].Ru
+                self.printupdatenorm(k, duc)
+                # correct by prolongation of update:  u <- u + P(u^{2h} - R u^h)
+                self.meshes[k].u += self.meshes[k].P(duc)
+                # smooth: NGS sweeps
+                for _ in range(self.up):
+                    self.ngssweep(k, self.meshes[k].u, self.meshes[k].ell, forward=False)
+                self.wu[k] += self.up
+
     # FAS F-cycle for levels kcoarse up to kfine; returns u
-    def fcycle(self, ep=True):
+    def fcycle(self, ep=True, unroll=False):
         u = self.meshes[self.kcoarse].zeros()
         ellg = self.rhs(self.kcoarse)
         self.printresidualnorm(0, self.kcoarse, u, ellg)
@@ -163,6 +200,9 @@ class FAS():
             else:
                 u = self.meshes[k].P(u)
             self.printresidualnorm(0, k, u, ellg)
-            self.vcycle(k, u, ellg)
+            if unroll:
+                self.vcycleunroll(k, u, ellg)
+            else:
+                self.vcycle(k, u, ellg)
             self.printresidualnorm(1, k, u, ellg)
         return u

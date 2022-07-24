@@ -1,0 +1,12 @@
+          0: residual norm 3.11814e+01
+          1: residual norm 2.16294e-06
+        0: residual norm 1.87502e+01
+        1: residual norm 4.30307e+00
+      0: residual norm 6.26227e+00
+      1: residual norm 1.21677e+00
+    0: residual norm 1.18553e+00
+    1: residual norm 2.75851e-01
+  0: residual norm 2.23037e-01
+  1: residual norm 5.29437e-02
+  2: residual norm 1.08783e-02
+  m=32 mesh, F-cycle, then 1 V(1,1) cycles (11.56 WU): |u|_2=0.713031, |u-u_ex|_2=5.9312e-03
