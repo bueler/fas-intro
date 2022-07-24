@@ -7,7 +7,9 @@ __all__ = ['FAS']
 
 class FAS():
     '''Class for the full approximation storage (FAS) scheme.  Implements
-    V-cycles and F-cycles.  At initialization:
+    V-cycles and F-cycles.
+
+    At initialization:
       meshes[k]: class MeshLevel1D from meshlevel.py
       prob:      class Problem1D from problems.py
     Note meshes[kcoarse],...,meshes[kfine] are the mesh levels.
@@ -27,9 +29,9 @@ class FAS():
                    smoother, and coarsesolve() at bottom
       fcycle():    do FAS F-cycle with one V-cycle per level on the
                    way up
-    The first two act in-place because they work from the finest level.
-    By contrast, fcycle() essentially has no inputs and returns the
-    solution on the finest level.
+    The first two act in-place because they work from the finest level,
+    but fcycle() essentially has no inputs and returns the solution on
+    the finest level.
 
     The class also does monitoring of residual norms and work units.
     '''
